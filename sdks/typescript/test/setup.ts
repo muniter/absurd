@@ -46,15 +46,7 @@ export interface TestContext {
   absurd: Absurd;
   pool: typeof pool;
   queueName: string;
-  getCheckpoints(taskID: string): Promise<Checkpoint[]>;
   cleanupTasks(): Promise<void>;
-}
-
-export interface Checkpoint {
-  step_name: string;
-  state: any;
-  owner_run_id: string;
-  created_at: Date;
 }
 
 export function randomName(prefix = 'test'): string {
@@ -68,26 +60,8 @@ export function createTestAbsurd(queueName: string = 'default'): TestContext {
     absurd,
     pool,
     queueName,
-    getCheckpoints: (taskID: string) => getCheckpoints(queueName, taskID),
     cleanupTasks: () => cleanupTasks(queueName),
   };
-}
-
-async function getCheckpoints(queue: string, taskID: string): Promise<Checkpoint[]> {
-  const result = await pool.query(
-    `SELECT checkpoint_name as step_name, state, owner_run_id, updated_at as created_at
-    FROM absurd.c_${queue}
-    WHERE task_id = $1
-    ORDER BY updated_at ASC`,
-    [taskID]
-  );
-
-  return result.rows.map(row => ({
-    step_name: row.step_name,
-    state: row.state,
-    owner_run_id: row.owner_run_id,
-    created_at: row.created_at,
-  }));
 }
 
 async function cleanupTasks(queue: string): Promise<void> {

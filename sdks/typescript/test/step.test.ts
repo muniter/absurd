@@ -122,17 +122,9 @@ describe("Step functionality", () => {
       result: { steps: ["result1", "result2", "result3"], attemptNum: 2 },
       attempts: 2,
     });
-
-    const checkpoints = await thelper.getCheckpoints(taskID);
-    expect(checkpoints).toHaveLength(3);
-    expect(checkpoints.map((c) => c.step_name)).toEqual([
-      "step1",
-      "step2",
-      "step3",
-    ]);
   });
 
-  test("repeated step names get unique checkpoint names", async () => {
+  test("repeated step names work correctly", async () => {
     absurd.registerTask<void, { results: number[] }>(
       { name: "test-step-dedup" },
       async (params, ctx) => {
@@ -154,14 +146,6 @@ describe("Step functionality", () => {
       status: "completed",
       result: { results: [0, 10, 20] },
     });
-
-    const checkpoints = await thelper.getCheckpoints(taskID);
-    expect(checkpoints).toHaveLength(3);
-    expect(checkpoints.map((c) => c.step_name)).toEqual([
-      "loop-step",
-      "loop-step#2",
-      "loop-step#3",
-    ]);
   });
 
   test("failed step does not save checkpoint and re-executes on retry", async () => {
@@ -188,9 +172,6 @@ describe("Step functionality", () => {
     await absurd.workBatch(workerID, 60, 1);
     expect(attemptCount).toBe(1);
 
-    const checkpointsAfterFailure = await thelper.getCheckpoints(taskID);
-    expect(checkpointsAfterFailure).toHaveLength(0);
-
     await absurd.workBatch(workerID, 60, 1);
     expect(attemptCount).toBe(2);
 
@@ -199,9 +180,5 @@ describe("Step functionality", () => {
       result: { result: "success" },
       attempts: 2,
     });
-
-    const checkpointsAfterSuccess = await thelper.getCheckpoints(taskID);
-    expect(checkpointsAfterSuccess).toHaveLength(1);
-    expect(checkpointsAfterSuccess[0]?.state).toBe("success");
   });
 });

@@ -252,7 +252,7 @@ describe("Basic SDK Operations", () => {
       });
     });
 
-    test("getTask returns error for failed task", async () => {
+    test("getTask and getRun return error for failed task", async () => {
       absurd.registerTask<{ shouldFail: boolean }>(
         { name: "test-task-fail", defaultMaxAttempts: 1 },
         async (params) => {
@@ -284,13 +284,11 @@ describe("Basic SDK Operations", () => {
       });
     });
 
-    test("getTask returns null for non-existent task", async () => {
+    test("getTask and getRun return null for non-existent task", async () => {
       expect(
         await absurd.getTask("00000000-0000-0000-0000-000000000000")
       ).toBeNull();
-    });
 
-    test("getRun returns null for non-existent run", async () => {
       expect(
         await absurd.getRun("00000000-0000-0000-0000-000000000000")
       ).toBeNull();

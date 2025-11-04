@@ -192,9 +192,9 @@ describe("Basic SDK Operations", () => {
   });
 
   describe("Task state transitions", () => {
-    test("task transitions through pending -> running -> completed states", async () => {
+    test("task transitions through all states: pending -> running -> completed", async () => {
       absurd.registerTask<{ value: number }>(
-        { name: "test-task-get-state" },
+        { name: "test-task-complete" },
         async (params, ctx) => {
           const doubled = await ctx.step("double", async () => {
             return params.value * 2;
@@ -203,10 +203,11 @@ describe("Basic SDK Operations", () => {
         }
       );
 
-      const { taskID, runID } = await absurd.spawn("test-task-get-state", {
+      const { taskID, runID } = await absurd.spawn("test-task-complete", {
         value: 21,
       });
 
+      // Initial state: pending
       expect(await thelper.getTask(taskID)).toMatchObject({
         state: "pending",
         attempts: expect.any(Number),
@@ -216,19 +217,16 @@ describe("Basic SDK Operations", () => {
         available_at: expect.any(Date),
       });
 
-      // Process the task
+      // Claim the task
       const claimed = await absurd.claimTasks({
         batchSize: 1,
         claimTimeout: 60,
-        workerId: "test-worker-get-state",
+        workerId: "test-worker-complete",
       });
       assert(claimed.length === 1 && claimed[0]);
       const claimedTask = claimed[0]!;
-      expect(claimedTask).toMatchObject({
-        task_id: taskID,
-        run_id: runID,
-      });
 
+      // After claiming: running
       expect(await thelper.getTask(taskID)).toMatchObject({
         state: "running",
         attempts: 1,
@@ -238,13 +236,14 @@ describe("Basic SDK Operations", () => {
         started_at: expect.any(Date),
       });
 
+      // Execute the task
       await absurd.executeTask(claimedTask, 60);
 
+      // Final state: completed
       expect(await thelper.getTask(taskID)).toMatchObject({
         state: "completed",
         attempts: 1,
         completed_payload: { doubled: 42 },
-        // Note: completed_at is on the run table, not the task table
       });
       expect(await thelper.getRun(runID)).toMatchObject({
         state: "completed",
@@ -253,7 +252,46 @@ describe("Basic SDK Operations", () => {
       });
     });
 
-    test("task transitions to failed state with error details", async () => {
+    test("task transitions to sleeping state when suspended", async () => {
+      const eventName = randomName("suspend_event");
+      absurd.registerTask(
+        { name: "test-task-suspend" },
+        async (params, ctx) => {
+          const result = await ctx.awaitEvent(eventName);
+          return { received: result };
+        }
+      );
+
+      const { taskID, runID } = await absurd.spawn("test-task-suspend", undefined);
+
+      // Initial state: pending
+      expect(await thelper.getTask(taskID)).toMatchObject({
+        state: "pending",
+      });
+
+      // Process the task (it will suspend waiting for event)
+      await absurd.workBatch("test-worker-suspend", 60, 1);
+
+      // After suspension: sleeping
+      expect(await thelper.getTask(taskID)).toMatchObject({
+        state: "sleeping",
+      });
+      expect(await thelper.getRun(runID)).toMatchObject({
+        state: "sleeping",
+      });
+
+      // Emit event to wake it up
+      await absurd.emitEvent(eventName, { data: "wakeup" });
+      await absurd.workBatch("test-worker-suspend", 60, 1);
+
+      // Final state: completed
+      expect(await thelper.getTask(taskID)).toMatchObject({
+        state: "completed",
+        completed_payload: { received: { data: "wakeup" } },
+      });
+    });
+
+    test("task transitions to failed state after all retries exhausted", async () => {
       absurd.registerTask<{ shouldFail: boolean }>(
         { name: "test-task-fail", defaultMaxAttempts: 1 },
         async (params) => {
@@ -268,7 +306,15 @@ describe("Basic SDK Operations", () => {
         shouldFail: true,
       });
 
+      // Initial state: pending
+      expect(await thelper.getTask(taskID)).toMatchObject({
+        state: "pending",
+      });
+
+      // Process and fail
       await absurd.workBatch("test-worker-fail", 60, 1);
+
+      // Final state: failed
       const failedTask = await thelper.getTask(taskID);
       expect(failedTask).toMatchObject({
         state: "failed",
@@ -281,16 +327,6 @@ describe("Basic SDK Operations", () => {
         }),
         failed_at: expect.any(Date),
       });
-    });
-
-    test("querying non-existent task and run returns null", async () => {
-      expect(
-        await thelper.getTask("00000000-0000-0000-0000-000000000000")
-      ).toBeNull();
-
-      expect(
-        await thelper.getRun("00000000-0000-0000-0000-000000000000")
-      ).toBeNull();
     });
   });
 

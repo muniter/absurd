@@ -1,5 +1,5 @@
 import { describe, test, assert, expect, beforeAll, afterEach } from "vitest";
-import { createTestAbsurd, randomName, type TestContext, getTask } from "./setup.js";
+import { createTestAbsurd, randomName, type TestContext } from "./setup.js";
 import type { Absurd } from "../src/index.js";
 
 describe("Step functionality", () => {
@@ -31,7 +31,7 @@ describe("Step functionality", () => {
     const { taskID } = await absurd.spawn("test-step-basic", { value: 42 });
     await absurd.workBatch(randomName("w"), 60, 1);
 
-    expect(await getTask(taskID, thelper.queueName)).toMatchObject({
+    expect(await thelper.getTask(taskID)).toMatchObject({
       state: "completed",
       completed_payload: { result: "processed-42" },
     });
@@ -69,7 +69,7 @@ describe("Step functionality", () => {
     expect(executionCount).toBe(1);
     expect(attemptCount).toBe(2);
 
-    expect(await getTask(taskID, thelper.queueName)).toMatchObject({
+    expect(await thelper.getTask(taskID)).toMatchObject({
       state: "completed",
       completed_payload: { count: 1 },
       attempts: 2,
@@ -117,7 +117,7 @@ describe("Step functionality", () => {
     await absurd.workBatch(workerID, 60, 1);
     expect(executed).toEqual(["step1", "step2", "step3"]);
 
-    expect(await getTask(taskID, thelper.queueName)).toMatchObject({
+    expect(await thelper.getTask(taskID)).toMatchObject({
       state: "completed",
       completed_payload: { steps: ["result1", "result2", "result3"], attemptNum: 2 },
       attempts: 2,
@@ -142,7 +142,7 @@ describe("Step functionality", () => {
     const { taskID } = await absurd.spawn("test-step-dedup", undefined);
     await absurd.workBatch(randomName("w"), 60, 1);
 
-    expect(await getTask(taskID, thelper.queueName)).toMatchObject({
+    expect(await thelper.getTask(taskID)).toMatchObject({
       state: "completed",
       completed_payload: { results: [0, 10, 20] },
     });
@@ -175,7 +175,7 @@ describe("Step functionality", () => {
     await absurd.workBatch(workerID, 60, 1);
     expect(attemptCount).toBe(2);
 
-    expect(await getTask(taskID, thelper.queueName)).toMatchObject({
+    expect(await thelper.getTask(taskID)).toMatchObject({
       state: "completed",
       completed_payload: { result: "success" },
       attempts: 2,

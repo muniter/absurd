@@ -83,6 +83,8 @@ export interface TestContext {
   pool: typeof pool;
   queueName: string;
   cleanupTasks(): Promise<void>;
+  getTask(taskID: string): Promise<TaskRow | null>;
+  getRun(runID: string): Promise<RunRow | null>;
 }
 
 export function randomName(prefix = 'test'): string {
@@ -97,6 +99,8 @@ export function createTestAbsurd(queueName: string = 'default'): TestContext {
     pool,
     queueName,
     cleanupTasks: () => cleanupTasks(queueName),
+    getTask: (taskID: string) => getTask(taskID, queueName),
+    getRun: (runID: string) => getRun(runID, queueName),
   };
 }
 
@@ -110,8 +114,8 @@ async function cleanupTasks(queue: string): Promise<void> {
   }
 }
 
-// Simple test helpers for querying task and run state
-export async function getTask(taskID: string, queue: string = 'default'): Promise<TaskRow | null> {
+// Internal helpers for querying task and run state
+async function getTask(taskID: string, queue: string): Promise<TaskRow | null> {
   const { rows } = await pool.query<TaskRow>(
     `SELECT * FROM absurd.t_${queue} WHERE task_id = $1`,
     [taskID]
@@ -119,7 +123,7 @@ export async function getTask(taskID: string, queue: string = 'default'): Promis
   return rows.length > 0 ? rows[0] : null;
 }
 
-export async function getRun(runID: string, queue: string = 'default'): Promise<RunRow | null> {
+async function getRun(runID: string, queue: string): Promise<RunRow | null> {
   const { rows } = await pool.query<RunRow>(
     `SELECT * FROM absurd.r_${queue} WHERE run_id = $1`,
     [runID]

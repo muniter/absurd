@@ -1,5 +1,5 @@
 import { describe, test, assert, expect, beforeAll, beforeEach } from "vitest";
-import { createTestAbsurd, randomName, type TestContext, getTask, getRun } from "./setup.js";
+import { createTestAbsurd, randomName, type TestContext } from "./setup.js";
 import type { Absurd } from "../src/index.js";
 
 describe("Basic SDK Operations", () => {
@@ -74,7 +74,7 @@ describe("Basic SDK Operations", () => {
       await absurd.workBatch("test-worker-attempts", 60, 1);
       await absurd.workBatch("test-worker-attempts", 60, 1);
 
-      const task = await getTask(taskID, thelper.queueName);
+      const task = await thelper.getTask(taskID);
       expect(task).toMatchObject({
         state: "failed",
         attempts: 2,
@@ -102,7 +102,7 @@ describe("Basic SDK Operations", () => {
         attempt: 1,
       });
 
-      let taskState = await getTask(spawnResult.taskID, thelper.queueName);
+      let taskState = await thelper.getTask(spawnResult.taskID);
       assert(taskState && taskState.state === "pending");
       const claimed = await thelper.absurd.claimTasks({
         batchSize: 1,
@@ -116,7 +116,7 @@ describe("Basic SDK Operations", () => {
         run_id: spawnResult.runID,
         attempt: spawnResult.attempt,
       });
-      taskState = await getTask(spawnResult.taskID, thelper.queueName);
+      taskState = await thelper.getTask(spawnResult.taskID);
       assert(taskState);
       assert(taskState.state === "running");
     });
@@ -180,7 +180,7 @@ describe("Basic SDK Operations", () => {
       });
 
       await absurd.workBatch("test-worker", 60, 1);
-      const taskInfo = await getTask(spawnResult.taskID, thelper.queueName);
+      const taskInfo = await thelper.getTask(spawnResult.taskID);
       assert(taskInfo);
       assert(taskInfo.state === "completed");
       expect(taskInfo.completed_payload).toEqual({
@@ -207,11 +207,11 @@ describe("Basic SDK Operations", () => {
         value: 21,
       });
 
-      expect(await getTask(taskID, thelper.queueName)).toMatchObject({
+      expect(await thelper.getTask(taskID)).toMatchObject({
         state: "pending",
         attempts: expect.any(Number),
       });
-      expect(await getRun(runID, thelper.queueName)).toMatchObject({
+      expect(await thelper.getRun(runID)).toMatchObject({
         state: "pending",
         available_at: expect.any(Date),
       });
@@ -229,24 +229,24 @@ describe("Basic SDK Operations", () => {
         run_id: runID,
       });
 
-      expect(await getTask(taskID, thelper.queueName)).toMatchObject({
+      expect(await thelper.getTask(taskID)).toMatchObject({
         state: "running",
         attempts: 1,
       });
-      expect(await getRun(runID, thelper.queueName)).toMatchObject({
+      expect(await thelper.getRun(runID)).toMatchObject({
         state: "running",
         started_at: expect.any(Date),
       });
 
       await absurd.executeTask(claimedTask, 60);
 
-      expect(await getTask(taskID, thelper.queueName)).toMatchObject({
+      expect(await thelper.getTask(taskID)).toMatchObject({
         state: "completed",
         attempts: 1,
         completed_payload: { doubled: 42 },
         // Note: completed_at is on the run table, not the task table
       });
-      expect(await getRun(runID, thelper.queueName)).toMatchObject({
+      expect(await thelper.getRun(runID)).toMatchObject({
         state: "completed",
         completed_at: expect.any(Date),
         result: { doubled: 42 },
@@ -269,11 +269,11 @@ describe("Basic SDK Operations", () => {
       });
 
       await absurd.workBatch("test-worker-fail", 60, 1);
-      const failedTask = await getTask(taskID, thelper.queueName);
+      const failedTask = await thelper.getTask(taskID);
       expect(failedTask).toMatchObject({
         state: "failed",
       });
-      const failedRun = await getRun(runID, thelper.queueName);
+      const failedRun = await thelper.getRun(runID);
       expect(failedRun).toMatchObject({
         state: "failed",
         failure_reason: expect.objectContaining({
@@ -285,11 +285,11 @@ describe("Basic SDK Operations", () => {
 
     test("getTask and getRun return null for non-existent task", async () => {
       expect(
-        await getTask("00000000-0000-0000-0000-000000000000", thelper.queueName)
+        await thelper.getTask("00000000-0000-0000-0000-000000000000")
       ).toBeNull();
 
       expect(
-        await getRun("00000000-0000-0000-0000-000000000000", thelper.queueName)
+        await thelper.getRun("00000000-0000-0000-0000-000000000000")
       ).toBeNull();
     });
   });
@@ -304,7 +304,7 @@ describe("Basic SDK Operations", () => {
       const { taskID } = await absurd.spawn("test-await-event", undefined);
       await absurd.workBatch("test-worker-event", 60, 1);
 
-      expect(await getTask(taskID, thelper.queueName)).toMatchObject({
+      expect(await thelper.getTask(taskID)).toMatchObject({
         state: "sleeping",
       });
 
@@ -312,7 +312,7 @@ describe("Basic SDK Operations", () => {
       await absurd.emitEvent(eventName, eventPayload);
       await absurd.workBatch("test-worker-event", 60, 1);
 
-      expect(await getTask(taskID, thelper.queueName)).toMatchObject({
+      expect(await thelper.getTask(taskID)).toMatchObject({
         state: "completed",
         completed_payload: { received: eventPayload },
       });
@@ -335,7 +335,7 @@ describe("Basic SDK Operations", () => {
 
       await absurd.workBatch("test-worker-cached", 60, 1);
 
-      const taskInfo = await getTask(taskID, thelper.queueName);
+      const taskInfo = await thelper.getTask(taskID);
       assert(taskInfo);
       expect(taskInfo).toMatchObject({
         state: "completed",
@@ -359,7 +359,7 @@ describe("Basic SDK Operations", () => {
 
       await absurd.workBatch("test-worker-batch", 60, 1);
 
-      expect(await getTask(taskID, thelper.queueName)).toMatchObject({
+      expect(await thelper.getTask(taskID)).toMatchObject({
         state: "completed",
         completed_payload: { doubled: 10 },
         attempts: 1,
@@ -380,15 +380,15 @@ describe("Basic SDK Operations", () => {
 
       await absurd.workBatch("test-worker-batch-multi", 60, 5);
 
-      expect(await getTask(task1.taskID, thelper.queueName)).toMatchObject({
+      expect(await thelper.getTask(task1.taskID)).toMatchObject({
         state: "completed",
         completed_payload: { result: "task-1" },
       });
-      expect(await getTask(task2.taskID, thelper.queueName)).toMatchObject({
+      expect(await thelper.getTask(task2.taskID)).toMatchObject({
         state: "completed",
         completed_payload: { result: "task-2" },
       });
-      expect(await getTask(task3.taskID, thelper.queueName)).toMatchObject({
+      expect(await thelper.getTask(task3.taskID)).toMatchObject({
         state: "completed",
         completed_payload: { result: "task-3" },
       });
@@ -414,19 +414,19 @@ describe("Basic SDK Operations", () => {
 
       await absurd.workBatch("test-worker-batch-fail", 60, 2);
 
-      const failedTask = await getTask(failTask.taskID, thelper.queueName);
+      const failedTask = await thelper.getTask(failTask.taskID);
       assert(failedTask);
       expect(failedTask).toMatchObject({
         state: "failed",
       });
       // Get the run to check the failure reason
       assert(failedTask.last_attempt_run);
-      const failedRun = await getRun(failedTask.last_attempt_run, thelper.queueName);
+      const failedRun = await thelper.getRun(failedTask.last_attempt_run);
       expect(failedRun?.failure_reason).toMatchObject({
         message: "Task failed in batch",
       });
       
-      expect(await getTask(successTask.taskID, thelper.queueName)).toMatchObject({
+      expect(await thelper.getTask(successTask.taskID)).toMatchObject({
         state: "completed",
         completed_payload: { success: true },
       });

@@ -1,4 +1,4 @@
-import { describe, test, assert, expect, beforeAll, beforeEach, afterEach } from "vitest";
+import { describe, test, assert, expect, beforeAll } from "vitest";
 import { createTestAbsurd, randomName, type TestContext } from "./setup.js";
 import type { Absurd } from "../src/index.js";
 
@@ -11,14 +11,6 @@ describe("Basic SDK Operations", () => {
     thelper = createTestAbsurd(queueName);
     absurd = thelper.absurd;
     await absurd.createQueue(queueName);
-  });
-
-  beforeEach(async () => {
-    await thelper.cleanupTasks();
-  });
-
-  afterEach(async () => {
-    await thelper.cleanupTasks();
   });
 
   describe("Queue management", () => {

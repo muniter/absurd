@@ -80,6 +80,30 @@ describe("Basic SDK Operations", () => {
         attempts: 2,
       });
     });
+
+    test("rejects spawning unregistered task without queue override", async () => {
+      await expect(
+        absurd.spawn("unregistered-task", { value: 1 }),
+      ).rejects.toThrowError(
+        "Task \"unregistered-task\" is not registered. Provide options.queue when spawning unregistered tasks.",
+      );
+    });
+
+    test("rejects spawning registered task on mismatched queue", async () => {
+      const taskName = "registered-queue-task";
+      const otherQueue = randomName("other_queue");
+
+      absurd.registerTask(
+        { name: taskName, queue: thelper.queueName },
+        async () => ({ success: true }),
+      );
+
+      await expect(
+        absurd.spawn(taskName, undefined, { queue: otherQueue }),
+      ).rejects.toThrowError(
+        `Task "${taskName}" is registered for queue "${thelper.queueName}" but spawn requested queue "${otherQueue}".`,
+      );
+    });
   });
 
   describe("Task claiming", () => {

@@ -191,8 +191,8 @@ describe("Basic SDK Operations", () => {
     });
   });
 
-  describe("Task and run status", () => {
-    test("getTask and getRun return task and run state", async () => {
+  describe("Task state transitions", () => {
+    test("task transitions through pending -> running -> completed states", async () => {
       absurd.registerTask<{ value: number }>(
         { name: "test-task-get-state" },
         async (params, ctx) => {
@@ -253,7 +253,7 @@ describe("Basic SDK Operations", () => {
       });
     });
 
-    test("getTask and getRun return error for failed task", async () => {
+    test("task transitions to failed state with error details", async () => {
       absurd.registerTask<{ shouldFail: boolean }>(
         { name: "test-task-fail", defaultMaxAttempts: 1 },
         async (params) => {
@@ -283,7 +283,7 @@ describe("Basic SDK Operations", () => {
       });
     });
 
-    test("getTask and getRun return null for non-existent task", async () => {
+    test("querying non-existent task and run returns null", async () => {
       expect(
         await thelper.getTask("00000000-0000-0000-0000-000000000000")
       ).toBeNull();

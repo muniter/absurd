@@ -3,7 +3,43 @@ import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers
 import { Pool } from 'pg';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { Absurd } from '../src/index.js';
+import { Absurd, type JsonValue } from '../src/index.js';
+
+// Database row types matching the PostgreSQL schema
+export interface TaskRow {
+  task_id: string;
+  task_name: string;
+  params: JsonValue;
+  headers: JsonValue | null;
+  retry_strategy: JsonValue | null;
+  max_attempts: number | null;
+  cancellation: JsonValue | null;
+  enqueue_at: Date;
+  first_started_at: Date | null;
+  state: 'pending' | 'running' | 'sleeping' | 'completed' | 'failed' | 'cancelled';
+  attempts: number;
+  last_attempt_run: string | null;
+  completed_payload: JsonValue | null;
+  cancelled_at: Date | null;
+}
+
+export interface RunRow {
+  run_id: string;
+  task_id: string;
+  attempt: number;
+  state: 'pending' | 'running' | 'sleeping' | 'completed' | 'failed' | 'cancelled';
+  claimed_by: string | null;
+  claim_expires_at: Date | null;
+  available_at: Date;
+  wake_event: string | null;
+  event_payload: JsonValue | null;
+  started_at: Date | null;
+  completed_at: Date | null;
+  failed_at: Date | null;
+  result: JsonValue | null;
+  failure_reason: JsonValue | null;
+  created_at: Date;
+}
 
 export let container: StartedPostgreSqlContainer;
 export let pool: Pool;
@@ -75,16 +111,16 @@ async function cleanupTasks(queue: string): Promise<void> {
 }
 
 // Simple test helpers for querying task and run state
-export async function getTask(taskID: string, queue: string = 'default') {
-  const { rows } = await pool.query(
+export async function getTask(taskID: string, queue: string = 'default'): Promise<TaskRow | null> {
+  const { rows } = await pool.query<TaskRow>(
     `SELECT * FROM absurd.t_${queue} WHERE task_id = $1`,
     [taskID]
   );
   return rows.length > 0 ? rows[0] : null;
 }
 
-export async function getRun(runID: string, queue: string = 'default') {
-  const { rows } = await pool.query(
+export async function getRun(runID: string, queue: string = 'default'): Promise<RunRow | null> {
+  const { rows } = await pool.query<RunRow>(
     `SELECT * FROM absurd.r_${queue} WHERE run_id = $1`,
     [runID]
   );

@@ -415,10 +415,12 @@ describe("Basic SDK Operations", () => {
       await absurd.workBatch("test-worker-batch-fail", 60, 2);
 
       const failedTask = await getTask(failTask.taskID, thelper.queueName);
+      assert(failedTask);
       expect(failedTask).toMatchObject({
         state: "failed",
       });
       // Get the run to check the failure reason
+      assert(failedTask.last_attempt_run);
       const failedRun = await getRun(failedTask.last_attempt_run, thelper.queueName);
       expect(failedRun?.failure_reason).toMatchObject({
         message: "Task failed in batch",

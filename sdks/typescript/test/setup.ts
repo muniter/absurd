@@ -73,3 +73,20 @@ async function cleanupTasks(queue: string): Promise<void> {
     }
   }
 }
+
+// Simple test helpers for querying task and run state
+export async function getTask(taskID: string, queue: string = 'default') {
+  const { rows } = await pool.query(
+    `SELECT * FROM absurd.t_${queue} WHERE task_id = $1`,
+    [taskID]
+  );
+  return rows.length > 0 ? rows[0] : null;
+}
+
+export async function getRun(runID: string, queue: string = 'default') {
+  const { rows } = await pool.query(
+    `SELECT * FROM absurd.r_${queue} WHERE run_id = $1`,
+    [runID]
+  );
+  return rows.length > 0 ? rows[0] : null;
+}

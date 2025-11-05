@@ -82,6 +82,8 @@ export interface TestContext {
   absurd: Absurd;
   pool: typeof pool;
   queueName: string;
+  setup(): Promise<void>;
+  teardown(): Promise<void>;
   cleanupTasks(): Promise<void>;
   getTask(taskID: string): Promise<TaskRow | null>;
   getRun(runID: string): Promise<RunRow | null>;
@@ -98,6 +100,12 @@ export function createTestAbsurd(queueName: string = 'default'): TestContext {
     absurd,
     pool,
     queueName,
+    setup: async () => {
+      await absurd.createQueue(queueName);
+    },
+    teardown: async () => {
+      await absurd.dropQueue(queueName);
+    },
     cleanupTasks: () => cleanupTasks(queueName),
     getTask: (taskID: string) => getTask(taskID, queueName),
     getRun: (runID: string) => getRun(runID, queueName),

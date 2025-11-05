@@ -25,11 +25,11 @@ describe("Worker behavior", () => {
     const queueName = randomName("worker_queue");
     thelper = createTestAbsurd(queueName);
     absurd = thelper.absurd;
-    await absurd.createQueue(queueName);
+    await thelper.setup();
   });
 
   afterAll(async () => {
-    await absurd.dropQueue(thelper.queueName);
+    await thelper.teardown();
   });
 
   test("processes tasks respecting concurrency", async () => {
@@ -44,12 +44,9 @@ describe("Worker behavior", () => {
       async () => {
         active += 1;
         maxConcurrent = Math.max(maxConcurrent, active);
-        try {
-          await new Promise((resolve) => setTimeout(resolve, 50));
-          return { done: true };
-        } finally {
-          active -= 1;
-        }
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        active -= 1;
+        return { done: true };
       },
     );
 
@@ -58,22 +55,19 @@ describe("Worker behavior", () => {
       pollInterval: 0.01,
     });
 
-    try {
-      const spawned = await Promise.all(
-        [0, 1, 2].map((index) => absurd.spawn(taskName, { index })),
+    const spawned = await Promise.all(
+      [0, 1, 2].map((index) => absurd.spawn(taskName, { index })),
+    );
+
+    await waitFor(async () => {
+      const rows = await Promise.all(
+        spawned.map(({ taskID }) => thelper.getTask(taskID)),
       );
+      return rows.every((row) => row?.state === "completed");
+    });
 
-      await waitFor(async () => {
-        const rows = await Promise.all(
-          spawned.map(({ taskID }) => thelper.getTask(taskID)),
-        );
-        return rows.every((row) => row?.state === "completed");
-      });
-
-      expect(maxConcurrent).toBeGreaterThanOrEqual(2);
-    } finally {
-      await worker.close();
-    }
+    expect(maxConcurrent).toBeGreaterThanOrEqual(2);
+    await worker.close();
   });
 
   test("invokes onError for failing task", async () => {
@@ -98,18 +92,15 @@ describe("Worker behavior", () => {
       },
     });
 
-    try {
-      const { taskID } = await absurd.spawn(taskName);
+    const { taskID } = await absurd.spawn(taskName);
 
-      await waitFor(async () => {
-        const task = await thelper.getTask(taskID);
-        return task?.state === "failed";
-      });
+    await waitFor(async () => {
+      const task = await thelper.getTask(taskID);
+      return task?.state === "failed";
+    });
 
-      expect(seenErrors.length).toBeGreaterThan(0);
-      expect(seenErrors[0].message).toBe("worker boom");
-    } finally {
-      await worker.close();
-    }
+    expect(seenErrors.length).toBeGreaterThan(0);
+    expect(seenErrors[0].message).toBe("worker boom");
+    await worker.close();
   });
 });

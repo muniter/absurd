@@ -1,4 +1,4 @@
-import { describe, test, assert, expect, beforeAll, afterEach } from "vitest";
+import { describe, test, assert, expect, beforeAll, afterAll, afterEach } from "vitest";
 import { createTestAbsurd, randomName, type TestContext } from "./setup.js";
 import type { Absurd } from "../src/index.js";
 
@@ -10,7 +10,11 @@ describe("Step functionality", () => {
     const queueName = randomName("test_queue");
     thelper = createTestAbsurd(queueName);
     absurd = thelper.absurd;
-    await absurd.createQueue(queueName);
+    await thelper.setup();
+  });
+
+  afterAll(async () => {
+    await thelper.teardown();
   });
 
   afterEach(async () => {
